@@ -1,53 +1,103 @@
-// This file will be used for API calls to the Spring Boot backend
+const API_BASE_URL = "http://localhost:8080/api"
 
-const API_BASE_URL = "http://localhost:8080/api/v1"
+// Create axios-like interface for error handling
+const apiClient = {
+    async request(url: string, options: RequestInit = {}) {
+        const token = localStorage.getItem("jwt_token") || sessionStorage.getItem("jwt_token")
 
-// Example API functions
+        const config: RequestInit = {
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(token && { Authorization: `Bearer ${token}` }),
+                ...options.headers,
+            },
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${url}`, config)
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null)
+                throw {
+                    response: {
+                        status: response.status,
+                        data: errorData,
+                    },
+                }
+            }
+
+            return await response.json()
+        } catch (error) {
+            throw error
+        }
+    },
+
+    get(url: string) {
+        return this.request(url, { method: "GET" })
+    },
+
+    post(url: string, data: any) {
+        return this.request(url, {
+            method: "POST",
+            body: JSON.stringify(data),
+        })
+    },
+
+    put(url: string, data: any) {
+        return this.request(url, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        })
+    },
+
+    delete(url: string) {
+        return this.request(url, { method: "DELETE" })
+    },
+}
+
+// Example API functions with error handling
 export const fetchRooms = async () => {
     try {
-        const response = await fetch(`${API_BASE_URL}/rooms`)
-        if (!response.ok) {
-            throw new Error("Failed to fetch rooms")
-        }
-        return await response.json()
+        return await apiClient.get("/rooms")
     } catch (error) {
-        console.error("Error fetching rooms:", error)
+        // Error will be handled by the component using this function
         throw error
     }
 }
 
 export const fetchRoomById = async (id: number) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/rooms/${id}`)
-        if (!response.ok) {
-            throw new Error(`Failed to fetch room with id ${id}`)
-        }
-        return await response.json()
+        return await apiClient.get(`/rooms/${id}`)
     } catch (error) {
-        console.error(`Error fetching room ${id}:`, error)
         throw error
     }
 }
 
 export const createBooking = async (bookingData: any) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/bookings`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(bookingData),
-        })
-
-        if (!response.ok) {
-            throw new Error("Failed to create booking")
-        }
-
-        return await response.json()
+        return await apiClient.post("/bookings", bookingData)
     } catch (error) {
-        console.error("Error creating booking:", error)
         throw error
     }
 }
 
-// Add more API functions as needed
+// Usage example in a component:
+/*
+import { useNavigate } from "react-router-dom"
+import { handleApiError } from "../utils/errorHandler"
+import { fetchRooms } from "../services/api"
+
+const MyComponent = () => {
+  const navigate = useNavigate()
+
+  const loadRooms = async () => {
+    try {
+      const rooms = await fetchRooms()
+      // Handle success
+    } catch (error) {
+      handleApiError(error, navigate, "/rooms")
+    }
+  }
+}
+*/
