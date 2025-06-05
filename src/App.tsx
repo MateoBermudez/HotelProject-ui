@@ -4,6 +4,8 @@ import LandingPage from "./pages/LandingPage"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
 import ThemeProvider from "./components/ThemeProvider"
+import LoginPage from "./pages/LoginPage"      // Add this import
+import SignUpPage from "./pages/SignUpPage"    // Add this import
 import "./App.css"
 
 function App() {
@@ -16,6 +18,8 @@ function App() {
                         <Routes>
                             <Route path="/" element={<HomePage />} />
                             <Route path="/welcome" element={<LandingPage />} />
+                            <Route path="/login" element={<LoginPage />} />      {/* Add this route */}
+                            <Route path="/signup" element={<SignUpPage />} />
                             {/* Other routes will be added later */}
                         </Routes>
                     </main>
