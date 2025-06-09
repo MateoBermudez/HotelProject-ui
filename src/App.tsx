@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
 import HomePage from "./pages/HomePage"
 import LandingPage from "./pages/LandingPage"
 import BookingPage from "./pages/BookingPage"
@@ -10,9 +10,52 @@ import ThemeProvider from "./components/ThemeProvider"
 import ErrorBoundary from "./components/ErrorBoundary"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AuthProvider } from "./hooks/useAuth"
-import LoginPage from "./pages/LoginPage"      // Add this import
-import SignUpPage from "./pages/SignUpPage"    // Add this import
+import LoginPage from "./pages/LoginPage"
+import SignUpPage from "./pages/SignUpPage"
+import DashboardPage from "./pages/DashboardPage.tsx"
+import ProfilePage from "./pages/ProfilePage"
+import PaymentPage from "./pages/PaymentPage.tsx"
+import BookingConfirmation from "./pages/BookingConfirmation.tsx"
 import "./App.css"
+
+function AppContent() {
+    const location = useLocation()
+    // Rutas donde SÍ quieres mostrar el Header
+    const showHeaderRoutes = ["/", "/welcome", "/booking", "/rooms/:id", "/error", "/login", "/signup", "/profilePage"]
+
+    const shouldShowHeader = showHeaderRoutes.includes(location.pathname)
+
+    return (
+        <div className="flex flex-col min-h-screen">
+            {shouldShowHeader && <Header />}
+            <main className="flex-grow">
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/welcome" element={<LandingPage />} />
+                    <Route path="/booking" element={<BookingPage />} />
+                    <Route path="/rooms/:id" element={<RoomDetailsPage />} />
+                    <Route path="/error" element={<ErrorPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/payment" element={<PaymentPage />} />
+                    <Route path="/confirmation" element={<BookingConfirmation />} />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <div>User Profile Page (Protected)</div>
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route path="*" element={<ErrorPage errorType="notfound" customMessage="Page Not Found" />} />
+                </Routes>
+            </main>
+            <Footer />
+        </div>
+    )
+}
 
 function App() {
     return (
@@ -20,47 +63,9 @@ function App() {
             <Router>
                 <AuthProvider>
                     <ErrorBoundary>
-                        <div className="flex flex-col min-h-screen">
-                            <Header />
-                            <main className="flex-grow">
-                                <Routes>
-                                    <Route path="/" element={<HomePage />} />
-                                    <Route path="/welcome" element={<LandingPage />} />
-                                    <Route path="/booking" element={<BookingPage />} />
-                                    <Route path="/rooms/:id" element={<RoomDetailsPage />} />
-                                    <Route path="/error" element={<ErrorPage />} />
-
-                                    {/* Protected routes example */}
-                                    <Route
-                                        path="/profile"
-                                        element={
-                                            <ProtectedRoute>
-                                                <div>User Profile Page (Protected)</div>
-                                            </ProtectedRoute>
-                                        }
-                                    />
-
-                                    {/* Catch all route for 404 */}
-                                    <Route path="*" element={<ErrorPage errorType="notfound" customMessage="Page Not Found" />} />
-                                </Routes>
-                            </main>
-                            <Footer />
-                        </div>
+                        <AppContent />
                     </ErrorBoundary>
                 </AuthProvider>
-                <div className="flex flex-col min-h-screen">
-                    <Header />
-                    <main className="flex-grow">
-                        <Routes>
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/welcome" element={<LandingPage />} />
-                            <Route path="/login" element={<LoginPage />} />      {/* Add this route */}
-                            <Route path="/signup" element={<SignUpPage />} />
-                            {/* Other routes will be added later */}
-                        </Routes>
-                    </main>
-                    <Footer />
-                </div>
             </Router>
         </ThemeProvider>
     )

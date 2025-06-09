@@ -21,6 +21,14 @@ export interface AuthResponse {
     token: string
 }
 
+export interface UserProfile {
+    userID: string
+    username: string
+    completeName: string
+    email: string
+    role: string
+}
+
 // Error response type for better error handling
 export interface ApiError {
     message: string
@@ -174,6 +182,38 @@ export const createBooking = async (bookingData: any) => {
         return await response.json()
     } catch (error) {
         console.error("Error creating booking:", error)
+        throw error
+    }
+}
+
+
+export const getCurrentUser = async (): Promise<UserProfile> => {
+    try {
+        const token = getToken()
+        if (!token) {
+            throw new Error("No authentication token found")
+        }
+
+        const response = await fetch(`${API_BASE_URL}/users/me`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        })
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                // Token expired or invalid - remove it
+                removeToken()
+                throw new Error("Session expired. Please login again.")
+            }
+            throw new Error(`Failed to get user info: ${response.status}`)
+        }
+
+        return await response.json()
+    } catch (error) {
+        console.error("Error getting current user:", error)
         throw error
     }
 }

@@ -47,7 +47,7 @@ const LoginPage = () => {
             console.log("Login successful! Token:", response.token)
 
             // Redirect to home page or dashboard
-            navigate("/")
+            navigate("/dashboard")
         } catch (error) {
             console.error("Login error:", error)
             const errorMessage = error instanceof Error ? error.message : "Login failed"

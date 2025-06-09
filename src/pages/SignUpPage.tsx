@@ -110,7 +110,7 @@ const SignUpPage = () => {
             console.log("Registration successful! Token:", response.token)
 
             // Redirect to home page or dashboard
-            navigate("/")
+            navigate("/dashboard")
         } catch (error) {
             console.error("Registration error:", error)
 
