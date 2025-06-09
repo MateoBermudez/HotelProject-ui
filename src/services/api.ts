@@ -1,103 +1,148 @@
+// API service for making HTTP requests to the backend
+
 const API_BASE_URL = "http://localhost:8080/api"
 
-// Create axios-like interface for error handling
-const apiClient = {
-    async request(url: string, options: RequestInit = {}) {
-        const token = localStorage.getItem("jwt_token") || sessionStorage.getItem("jwt_token")
-
-        const config: RequestInit = {
-            ...options,
-            headers: {
-                "Content-Type": "application/json",
-                ...(token && { Authorization: `Bearer ${token}` }),
-                ...options.headers,
-            },
-        }
-
+// Helper function to handle API responses
+const handleResponse = async (response: Response) => {
+    if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage
         try {
-            const response = await fetch(`${API_BASE_URL}${url}`, config)
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null)
-                throw {
-                    response: {
-                        status: response.status,
-                        data: errorData,
-                    },
-                }
-            }
-
-            return await response.json()
-        } catch (error) {
-            throw error
+            const errorData = await response.json()
+            errorMessage = errorData.message || `Error: ${response.status}`
+        } catch (e) {
+            errorMessage = `Error: ${response.status}`
         }
-    },
+        throw new Error(errorMessage)
+    }
 
-    get(url: string) {
-        return this.request(url, { method: "GET" })
-    },
+    // Check if response is empty
+    const contentType = response.headers.get("content-type")
+    if (contentType && contentType.includes("application/json")) {
+        return await response.json()
+    }
 
-    post(url: string, data: any) {
-        return this.request(url, {
-            method: "POST",
-            body: JSON.stringify(data),
-        })
-    },
-
-    put(url: string, data: any) {
-        return this.request(url, {
-            method: "PUT",
-            body: JSON.stringify(data),
-        })
-    },
-
-    delete(url: string) {
-        return this.request(url, { method: "DELETE" })
-    },
+    return await response.blob()
 }
 
-// Example API functions with error handling
+// Get user profile information
+export const getUserProfile = async (token: string | null) => {
+    if (!token) throw new Error("No authentication token provided")
+
+    const response = await fetch(`${API_BASE_URL}/users/profile`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    })
+
+    return handleResponse(response)
+}
+
+// Get user bookings
+export const getUserBookings = async (token: string | null) => {
+    if (!token) throw new Error("No authentication token provided")
+
+    const response = await fetch(`${API_BASE_URL}/bookings/user`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    })
+
+    return handleResponse(response)
+}
+
+// Generate booking report (PDF)
+export const generateBookingReport = async (token: string | null, bookingId: number) => {
+    if (!token) throw new Error("No authentication token provided")
+
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/report`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/pdf",
+        },
+    })
+
+    return handleResponse(response)
+}
+
+// Example API functions from previous implementation
 export const fetchRooms = async () => {
     try {
-        return await apiClient.get("/rooms")
+        const response = await fetch(`${API_BASE_URL}/rooms`)
+        if (!response.ok) {
+            throw new Error("Failed to fetch rooms")
+        }
+        return await response.json()
     } catch (error) {
-        // Error will be handled by the component using this function
+        console.error("Error fetching rooms:", error)
         throw error
     }
 }
 
 export const fetchRoomById = async (id: number) => {
     try {
-        return await apiClient.get(`/rooms/${id}`)
+        const response = await fetch(`${API_BASE_URL}/rooms/${id}`)
+        if (!response.ok) {
+            throw new Error(`Failed to fetch room with id ${id}`)
+        }
+        return await response.json()
     } catch (error) {
+        console.error(`Error fetching room ${id}:`, error)
         throw error
     }
 }
 
-export const createBooking = async (bookingData: any) => {
+export const createBooking = async (bookingData: any, token: string | null) => {
+    if (!token) throw new Error("No authentication token provided")
+
     try {
-        return await apiClient.post("/bookings", bookingData)
+        const response = await fetch(`${API_BASE_URL}/bookings`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(bookingData),
+        })
+
+        if (!response.ok) {
+            throw new Error("Failed to create booking")
+        }
+
+        return await response.json()
     } catch (error) {
+        console.error("Error creating booking:", error)
         throw error
     }
 }
 
-// Usage example in a component:
-/*
-import { useNavigate } from "react-router-dom"
-import { handleApiError } from "../utils/errorHandler"
-import { fetchRooms } from "../services/api"
+// Login user and get JWT token
+export const loginUser = async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+    })
 
-const MyComponent = () => {
-  const navigate = useNavigate()
-
-  const loadRooms = async () => {
-    try {
-      const rooms = await fetchRooms()
-      // Handle success
-    } catch (error) {
-      handleApiError(error, navigate, "/rooms")
-    }
-  }
+    return handleResponse(response)
 }
-*/
+
+// Register new user
+export const registerUser = async (userData: any) => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+    })
+
+    return handleResponse(response)
+}

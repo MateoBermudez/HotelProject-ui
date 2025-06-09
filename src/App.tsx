@@ -11,6 +11,8 @@ import ErrorBoundary from "./components/ErrorBoundary"
 import ProtectedRoute from "./components/ProtectedRoute"
 import { AuthProvider } from "./hooks/useAuth"
 import "./App.css"
+import UserBookingsPage from "@/pages/UserBookingsPage.tsx";
+import "./styles/bookings.css"
 
 function App() {
     return (
@@ -27,6 +29,7 @@ function App() {
                                     <Route path="/booking" element={<BookingPage />} />
                                     <Route path="/rooms/:id" element={<RoomDetailsPage />} />
                                     <Route path="/error" element={<ErrorPage />} />
+                                    <Route path="/bookings" element={<UserBookingsPage />} />
 
                                     {/* Protected routes example */}
                                     <Route
