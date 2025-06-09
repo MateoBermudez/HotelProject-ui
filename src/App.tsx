@@ -17,6 +17,8 @@ import ProfilePage from "./pages/ProfilePage"
 import PaymentPage from "./pages/PaymentPage.tsx"
 import BookingConfirmation from "./pages/BookingConfirmation.tsx"
 import "./App.css"
+import UserBookingsPage from "@/pages/UserBookingsPage.tsx";
+import "./styles/bookings.css"
 
 function AppContent() {
     const location = useLocation()
@@ -41,6 +43,7 @@ function AppContent() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/payment" element={<PaymentPage />} />
                     <Route path="/confirmation" element={<BookingConfirmation />} />
+                    <Route path="/bookings" element={<UserBookingsPage />} />
                     <Route
                         path="/profile"
                         element={

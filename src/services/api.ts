@@ -2,6 +2,25 @@
 
 const API_BASE_URL = "http://localhost:8080/api/v1"
 
+// Helper function to handle API responses
+const handleResponse = async (response: Response) => {
+    if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage
+        try {
+            const errorData = await response.json()
+            errorMessage = errorData.message || `Error: ${response.status}`
+        } catch (e) {
+            errorMessage = `Error: ${response.status}`
+        }
+        throw new Error(errorMessage)
+    }
+
+    // Check if response is empty
+    const contentType = response.headers.get("content-type")
+    if (contentType && contentType.includes("application/json")) {
+        return await response.json()
+    }
 // Request/Response types matching your backend DTOs
 export interface RegisterRequest {
     userID: string
@@ -75,6 +94,29 @@ export const registerUser = async (userData: RegisterRequest): Promise<AuthRespo
     }
 }
 
+// Generate booking report (PDF)
+export const generateBookingReport = async (token: string | null, bookingId: number) => {
+    if (!token) throw new Error("No authentication token provided")
+
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/report`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/pdf",
+        },
+    })
+
+    return handleResponse(response)
+}
+
+// Example API functions from previous implementation
+export const fetchRooms = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms`)
+        if (!response.ok) {
+            throw new Error("Failed to fetch rooms")
+        }
+        return await response.json()
 export const loginUser = async (credentials: LoginRequest): Promise<AuthResponse> => {
     try {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -136,19 +178,7 @@ export const fetchRooms = async () => {
 
 export const fetchRoomById = async (id: number) => {
     try {
-        const headers: HeadersInit = {
-            "Content-Type": "application/json",
-        }
-
-        const token = getToken()
-        if (token) {
-            headers.Authorization = `Bearer ${token}`
-        }
-
-        const response = await fetch(`${API_BASE_URL}/rooms/${id}`, {
-            headers,
-        })
-
+        const response = await fetch(`${API_BASE_URL}/rooms/${id}`)
         if (!response.ok) {
             throw new Error(`Failed to fetch room with id ${id}`)
         }
@@ -159,13 +189,10 @@ export const fetchRoomById = async (id: number) => {
     }
 }
 
-export const createBooking = async (bookingData: any) => {
-    try {
-        const token = getToken()
-        if (!token) {
-            throw new Error("Authentication required to create a booking")
-        }
+export const createBooking = async (bookingData: any, token: string | null) => {
+    if (!token) throw new Error("No authentication token provided")
 
+    try {
         const response = await fetch(`${API_BASE_URL}/bookings`, {
             method: "POST",
             headers: {
@@ -217,3 +244,4 @@ export const getCurrentUser = async (): Promise<UserProfile> => {
         throw error
     }
 }
+*/
