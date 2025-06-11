@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { User, Mail, Shield, ArrowLeft, Calendar, Lock, Bell } from "lucide-react"
 import { isAuthenticated, getToken } from "../services/api"
+import DashboardHeader from "@/components/DashboardHeader.tsx";
 
 // Interfaz que coincide con tu UserDTO del backend
 interface UserProfile {
@@ -78,12 +79,13 @@ const ProfilePage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="flex flex-col min-h-screen">
+            <DashboardHeader/>
             <div className="container mx-auto px-4">
                 <div className="max-w-3xl mx-auto">
                     {/* Cabecera */}
                     <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Mi Perfil</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
                         <p className="text-gray-600">Your Account Information</p>
                     </div>
 
@@ -162,7 +164,7 @@ const ProfilePage = () => {
                     {/* Enlaces Rápidos */}
                     <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Link
-                            to="/my-bookings"
+                            to="/bookings"
                             className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow flex items-center"
                         >
                             <Calendar className="h-5 w-5 text-teal-600 mr-3" />

@@ -1,11 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Calendar, FileText, ChevronDown, ChevronUp, User, Mail, Phone, Clock, MapPin, CreditCard } from "lucide-react"
+import DashboardHeader from "@/components/DashboardHeader.tsx"
+import {
+    fetchBookingsByUserId,
+    getCurrentUser,
+    Booking,
+    getBookingPdf,
+    BookingDTO,
+    getRoomImagesFromSupabase,
+    calculateRefund,
+    RefundDTO,
+    fetchPaymentById,
+    fetchPaymentByBookingId
+} from "../services/api"
 
 interface UserProfile {
-    id: number
+    id: string
     firstName: string
     lastName: string
     email: string
@@ -14,119 +27,38 @@ interface UserProfile {
     memberSince: string
 }
 
-interface Booking {
-    id: number
-    roomName: string
-    roomType: string
-    checkInDate: string
-    checkOutDate: string
-    guests: number
-    totalPrice: number
-    status: "confirmed" | "completed" | "cancelled" | "pending"
-    paymentMethod: string
-    bookingDate: string
-    specialRequests?: string
-    roomImage: string
-    nights: number
-    pricePerNight: number
-}
-
 const UserBookingsPage = () => {
     const [profile, setProfile] = useState<UserProfile | null>(null)
-    const [bookings, setBookings] = useState<Booking[]>([])
+    const [bookings, setBookings] = useState<BookingDTO[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [expandedBooking, setExpandedBooking] = useState<number | null>(null)
     const [generatingReport, setGeneratingReport] = useState<number | null>(null)
+    const [showRefundModal, setShowRefundModal] = useState<{ visible: boolean, bookingId?: number, amount?: number }>({ visible: false })
+    const [refundLoading, setRefundLoading] = useState(false)
+    const [refundError, setRefundError] = useState<string | null>(null)
+    const [refundResult, setRefundResult] = useState<RefundDTO | null>(null)
     const navigate = useNavigate()
 
-    // Mock data for development
-    const mockProfile: UserProfile = {
-        id: 1,
-        firstName: "John",
-        lastName: "Doe",
-        email: "john.doe@example.com",
-        phone: "+1 (555) 123-4567",
-        address: "123 Main Street, New York, NY 10001",
-        memberSince: "2023-01-15",
-    }
-
-    const mockBookings: Booking[] = [
-        {
-            id: 1,
-            roomName: "Deluxe Ocean Suite",
-            roomType: "Suite",
-            checkInDate: "2024-03-15",
-            checkOutDate: "2024-03-18",
-            guests: 2,
-            totalPrice: 1197,
-            status: "confirmed",
-            paymentMethod: "Visa ending in 4532",
-            bookingDate: "2024-02-20",
-            specialRequests: "Late checkout requested, ocean view preferred",
-            roomImage: "/placeholder.svg?height=200&width=300",
-            nights: 3,
-            pricePerNight: 399,
-        },
-        {
-            id: 2,
-            roomName: "Executive Business Room",
-            roomType: "Business",
-            checkInDate: "2024-02-10",
-            checkOutDate: "2024-02-12",
-            guests: 1,
-            totalPrice: 598,
-            status: "completed",
-            paymentMethod: "Mastercard ending in 8765",
-            bookingDate: "2024-01-15",
-            specialRequests: "Early check-in, quiet room for business calls",
-            roomImage: "/placeholder.svg?height=200&width=300",
-            nights: 2,
-            pricePerNight: 299,
-        },
-        {
-            id: 3,
-            roomName: "Family Suite",
-            roomType: "Family",
-            checkInDate: "2024-01-05",
-            checkOutDate: "2024-01-08",
-            guests: 4,
-            totalPrice: 1047,
-            status: "completed",
-            paymentMethod: "Visa ending in 1234",
-            bookingDate: "2023-12-10",
-            specialRequests: "Extra towels for children, crib needed",
-            roomImage: "/placeholder.svg?height=200&width=300",
-            nights: 3,
-            pricePerNight: 349,
-        },
-        {
-            id: 4,
-            roomName: "Standard Room",
-            roomType: "Standard",
-            checkInDate: "2023-12-20",
-            checkOutDate: "2023-12-22",
-            guests: 2,
-            totalPrice: 398,
-            status: "cancelled",
-            paymentMethod: "Visa ending in 4532",
-            bookingDate: "2023-11-25",
-            roomImage: "/placeholder.svg?height=200&width=300",
-            nights: 2,
-            pricePerNight: 199,
-        },
-    ]
-
     useEffect(() => {
-        // Simulate API call
         const fetchData = async () => {
             setLoading(true)
             try {
-                // Simulate network delay
-                await new Promise((resolve) => setTimeout(resolve, 1000))
-
-                setProfile(mockProfile)
-                setBookings(mockBookings)
+                // Obtener el usuario actual
+                const user = await getCurrentUser()
+                setProfile({
+                    memberSince: "", // Si tienes este campo en el backend, asígnalo aquí
+                    id: user.userID,
+                    firstName: user.completeName.split(" ")[0] || "",
+                    lastName: user.completeName.split(" ").slice(1).join(" ") || "",
+                    email: user.email,
+                    phone: "", // Ajusta si tienes el campo phone en el backend
+                    address: "" // Ajusta si tienes el campo address en el backend
+                })
+                // Traer las reservas por userID
+                const bookings = await fetchBookingsByUserId(user.userID)
+                // Adaptar los datos del backend a la UI
+                setBookings(bookings)
                 setError(null)
             } catch (err) {
                 console.error("Error fetching user data:", err)
@@ -135,7 +67,6 @@ const UserBookingsPage = () => {
                 setLoading(false)
             }
         }
-
         fetchData()
     }, [])
 
@@ -143,20 +74,21 @@ const UserBookingsPage = () => {
         setExpandedBooking(expandedBooking === bookingId ? null : bookingId)
     }
 
+    const roomImages = getRoomImagesFromSupabase();
+
     const handleGenerateReport = async (bookingId: number) => {
         try {
             setGeneratingReport(bookingId)
-
-            // Simulate report generation
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-
-            // Create a mock PDF download
-            const element = document.createElement("a")
-            element.href = "data:text/plain;charset=utf-8,Booking Report for Booking ID: " + bookingId
-            element.download = `booking-${bookingId}-report.pdf`
-            document.body.appendChild(element)
-            element.click()
-            document.body.removeChild(element)
+            // Obtener el PDF real desde el backend
+            const pdfBlob = await getBookingPdf(bookingId)
+            const url = window.URL.createObjectURL(pdfBlob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `booking_${bookingId}_report.pdf`
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            window.URL.revokeObjectURL(url)
         } catch (err) {
             console.error("Error generating report:", err)
             alert("Failed to generate report. Please try again later.")
@@ -164,6 +96,49 @@ const UserBookingsPage = () => {
             setGeneratingReport(null)
         }
     }
+
+    const handleRefundClick = (bookingId: number, amount: number) => {
+        setShowRefundModal({ visible: true, bookingId, amount });
+    };
+
+    const handleRefundConfirm = async () => {
+        setRefundLoading(true);
+        setRefundError(null);
+        setRefundResult(null);
+        try {
+            const booking = bookings.find(b => b.id === showRefundModal.bookingId);
+            if (!booking) throw new Error("Booking not found");
+            let paymentID = "";
+            if ((booking as any).paymentID) paymentID = (booking as any).paymentID;
+            else {
+                try {
+                    const payment = await fetchPaymentByBookingId(booking.id);
+                    paymentID = payment.paymentID;
+                } catch (e) {
+                    throw new Error("No payment found for this booking");
+                }
+            }
+            const refundDTO: RefundDTO = {
+                refundID: null,
+                paymentID,
+                amount: null,
+                refundDate: new Date().toISOString().split('T')[0],
+            };
+            const result = await calculateRefund(refundDTO);
+            setRefundResult(result);
+            setShowRefundModal({ visible: false });
+            // Actualizar el estado de la reserva a cancelled
+            setTimeout(() => setRefundResult(result), 0);
+        } catch (err: any) {
+            setRefundError(err.message || "Error requesting refund");
+        } finally {
+            setRefundLoading(false);
+        }
+    };
+
+    const handleRefundCancel = () => {
+        setShowRefundModal({ visible: false });
+    };
 
     const formatDate = (dateString: string) => {
         const options: Intl.DateTimeFormatOptions = {
@@ -176,11 +151,11 @@ const UserBookingsPage = () => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "confirmed":
+            case "Confirmed":
                 return "status-confirmed"
-            case "completed":
+            case "Completed":
                 return "status-completed"
-            case "cancelled":
+            case "Cancelled":
                 return "status-cancelled"
             case "pending":
                 return "status-pending"
@@ -189,9 +164,19 @@ const UserBookingsPage = () => {
         }
     }
 
-    const getStatusText = (status: string) => {
-        return status.charAt(0).toUpperCase() + status.slice(1)
+    const getStatusText = (status: boolean) => {
+        if (status === true)
+            return "Confirmed"
+        else {
+            return "Cancelled"
+        }
     }
+
+    const renderStatusBadge = (booking: BookingDTO) => (
+        <div className={`status-badge ${getStatusColor(getStatusText(booking.confirmed))}`}>
+            {getStatusText(booking.confirmed)}
+        </div>
+    );
 
     if (loading) {
         return (
@@ -225,6 +210,7 @@ const UserBookingsPage = () => {
 
     return (
         <div className="user-bookings-page">
+            <DashboardHeader />
             <div className="container py-20">
                 {/* Page Header */}
                 <div className="page-header">
@@ -243,7 +229,6 @@ const UserBookingsPage = () => {
                                 <h2>
                                     {profile.firstName} {profile.lastName}
                                 </h2>
-                                <p className="member-since">Member since {formatDate(profile.memberSince)}</p>
                             </div>
                         </div>
                         <div className="profile-details">
@@ -252,8 +237,8 @@ const UserBookingsPage = () => {
                                 <span>{profile.email}</span>
                             </div>
                             <div className="contact-item">
-                                <Phone />
-                                <span>{profile.phone}</span>
+                                <User />
+                                <span>{profile.id}</span>
                             </div>
                             {profile.address && (
                                 <div className="contact-item">
@@ -277,9 +262,7 @@ const UserBookingsPage = () => {
                             <Calendar />
                             <h3>No bookings found</h3>
                             <p>You haven't made any reservations yet.</p>
-                            <button className="btn btn-primary" onClick={() => navigate("/rooms")}>
-                                Browse Rooms
-                            </button>
+                            <button className="btn btn-primary" onClick={() => navigate("/rooms")}>Browse Rooms</button>
                         </div>
                     ) : (
                         <div className="bookings-list">
@@ -289,32 +272,38 @@ const UserBookingsPage = () => {
                                     <div className="booking-header" onClick={() => toggleBookingDetails(booking.id)}>
                                         <div className="booking-main-info">
                                             <div className="room-image">
-                                                <img src={booking.roomImage || "/placeholder.svg"} alt={booking.roomName} />
+                                                {(() => {
+                                                    let imageUrl = "/placeholder.svg";
+                                                    const type = booking.room.roomType.toString().toUpperCase();
+                                                    if (type === "DELUXE") imageUrl = roomImages[0];
+                                                    else if (type === "STANDARD") imageUrl = roomImages[1];
+                                                    else if (type === "SUITE") imageUrl = roomImages[2];
+
+                                                   return(
+                                                <img
+                                                    src={imageUrl}
+                                                    alt={type}
+                                                    className="w-full h-40 object-cover rounded-lg"
+                                                />
+                                                    )
+                                                })()}
                                             </div>
                                             <div className="booking-details">
-                                                <h3>{booking.roomName}</h3>
-                                                <p className="room-type">{booking.roomType} Room</p>
+                                                <h3>{booking.room.roomType.toString().toUpperCase()}</h3>
+                                                <p className="room-type">{booking.room && booking.room.roomType ? booking.room.roomType.name : ""} Room</p>
                                                 <div className="booking-dates">
                                                     <Calendar />
                                                     <span>
-                            {formatDate(booking.checkInDate)} - {formatDate(booking.checkOutDate)}
-                          </span>
-                                                </div>
-                                                <div className="booking-guests">
-                                                    <User />
-                                                    <span>
-                            {booking.guests} {booking.guests === 1 ? "Guest" : "Guests"}
-                          </span>
+                                                        {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="booking-summary">
-                                            <div className={`status-badge ${getStatusColor(booking.status)}`}>
-                                                {getStatusText(booking.status)}
-                                            </div>
+                                            {renderStatusBadge(booking)}
                                             <div className="price-info">
                                                 <span className="total-price">${booking.totalPrice}</span>
-                                                <span className="price-detail">{booking.nights} nights</span>
+                                                <span className="price-detail">{booking.startDate && booking.endDate ? Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 1} nights</span>
                                             </div>
                                             <div className="expand-indicator">
                                                 {expandedBooking === booking.id ? <ChevronUp /> : <ChevronDown />}
@@ -322,7 +311,6 @@ const UserBookingsPage = () => {
                                             </div>
                                         </div>
                                     </div>
-
                                     {/* Expanded Details */}
                                     {expandedBooking === booking.id && (
                                         <div className="booking-expanded">
@@ -335,19 +323,19 @@ const UserBookingsPage = () => {
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Booking Date:</span>
-                                                        <span className="value">{formatDate(booking.bookingDate)}</span>
+                                                        <span className="value">{formatDate(booking.createdAt || booking.startDate)}</span>
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Check-in:</span>
-                                                        <span className="value">{formatDate(booking.checkInDate)}</span>
+                                                        <span className="value">{formatDate(booking.startDate)}</span>
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Check-out:</span>
-                                                        <span className="value">{formatDate(booking.checkOutDate)}</span>
+                                                        <span className="value">{formatDate(booking.endDate)}</span>
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Duration:</span>
-                                                        <span className="value">{booking.nights} nights</span>
+                                                        <span className="value">{booking.startDate && booking.endDate ? Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)) : 1} nights</span>
                                                     </div>
                                                 </div>
 
@@ -355,7 +343,7 @@ const UserBookingsPage = () => {
                                                     <h4>Payment Details</h4>
                                                     <div className="detail-item">
                                                         <span className="label">Room Rate:</span>
-                                                        <span className="value">${booking.pricePerNight}/night</span>
+                                                        <span className="value">${booking.room ? booking.room.pricePerNight : 0}/night</span>
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Total Amount:</span>
@@ -364,25 +352,19 @@ const UserBookingsPage = () => {
                                                     <div className="detail-item">
                                                         <span className="label">Payment Method:</span>
                                                         <span className="value">
-                              <CreditCard />
-                                                            {booking.paymentMethod}
-                            </span>
+                                                            <CreditCard />
+                                                            <p>Debit Card</p>
+                                                            {/* Si tienes el método de pago, muéstralo aquí */}
+                                                        </span>
                                                     </div>
                                                     <div className="detail-item">
                                                         <span className="label">Status:</span>
-                                                        <span className={`value status-text ${getStatusColor(booking.status)}`}>
-                              {getStatusText(booking.status)}
-                            </span>
+                                                        <span className={`value status-text ${renderStatusBadge(booking)}`}>
+                                                            {"Confirmed"}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {booking.specialRequests && (
-                                                <div className="special-requests">
-                                                    <h4>Special Requests</h4>
-                                                    <p>{booking.specialRequests}</p>
-                                                </div>
-                                            )}
 
                                             <div className="booking-actions">
                                                 <button
@@ -402,7 +384,12 @@ const UserBookingsPage = () => {
                                                         </>
                                                     )}
                                                 </button>
-                                                {booking.status === "confirmed" && <button className="btn btn-outline">Modify Booking</button>}
+                                                <button
+                                                    className="btn btn-outline"
+                                                    onClick={() => handleRefundClick(booking.id, booking.totalPrice)}
+                                                >
+                                                    Refund
+                                                </button>
                                             </div>
                                         </div>
                                     )}
@@ -412,6 +399,40 @@ const UserBookingsPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Refund Modal */}
+            {showRefundModal.visible && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div style={{ background: 'white', borderRadius: '12px', padding: '2rem', minWidth: '320px', maxWidth: '90vw', boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
+                        <h2 style={{ marginBottom: '1rem' }}>Are you sure you want to request a refund?</h2>
+                        <p style={{ marginBottom: '1rem' }}>This will result in the loss of your reservation.</p>
+                        {refundError && <p style={{color: 'red'}}>{refundError}</p>}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button className="btn btn-outline" onClick={handleRefundCancel} disabled={refundLoading}>Cancel</button>
+                            <button className="btn btn-primary" onClick={handleRefundConfirm} disabled={refundLoading}>
+                                {refundLoading ? 'Processing...' : 'Confirm Refund'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Refund Result Modal */}
+            {refundResult && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div style={{ background: 'white', borderRadius: '12px', padding: '2rem', minWidth: '320px', maxWidth: '90vw', boxShadow: '0 2px 16px rgba(0,0,0,0.2)' }}>
+                        <h2 style={{ marginBottom: '1rem' }}>Refund Processed</h2>
+                        <p style={{ marginBottom: '1rem' }}>Your refund has been processed successfully.</p>
+                        <p><b>Refund ID:</b> {refundResult.refundID || 'N/A'}</p>
+                        <p><b>Payment ID:</b> {refundResult.paymentID}</p>
+                        <p><b>Amount:</b> ${refundResult.amount}</p>
+                        <p><b>Date:</b> {refundResult.refundDate}</p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                            <button className="btn btn-primary" onClick={() => setRefundResult(null)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

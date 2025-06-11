@@ -18,12 +18,13 @@ import PaymentPage from "./pages/PaymentPage.tsx"
 import BookingConfirmation from "./pages/BookingConfirmation.tsx"
 import "./App.css"
 import UserBookingsPage from "@/pages/UserBookingsPage.tsx";
+import RoomsPage from "@/pages/RoomsPage.tsx";
 import "./styles/bookings.css"
 
 function AppContent() {
     const location = useLocation()
     // Rutas donde SÍ quieres mostrar el Header
-    const showHeaderRoutes = ["/", "/welcome", "/booking", "/rooms/:id", "/error", "/login", "/signup", "/profilePage"]
+    const showHeaderRoutes = ["/", "/welcome", "/rooms/:id", "/error", "/login", "/signup", "/profilePage"]
 
     const shouldShowHeader = showHeaderRoutes.includes(location.pathname)
 
@@ -41,9 +42,10 @@ function AppContent() {
                     <Route path="/signup" element={<SignUpPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/payment" element={<PaymentPage />} />
-                    <Route path="/confirmation" element={<BookingConfirmation />} />
+                    <Route path="/payment/:bookingId" element={<PaymentPage />} />
+                    <Route path="/confirmation/:paymentId" element={<BookingConfirmation />} />
                     <Route path="/bookings" element={<UserBookingsPage />} />
+                    <Route path="/rooms" element={<RoomsPage />} />
                     <Route
                         path="/profile"
                         element={
